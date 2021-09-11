@@ -1,5 +1,7 @@
 ﻿using Common;
 using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,37 +12,13 @@ namespace Consumer1
     {
         static async Task Main(string[] args)
         {
-            var busControl = Bus.Factory.CreateUsingRabbitMq(cfg =>
-            {
-                cfg.Host(new Uri(Environment.GetEnvironmentVariable("RabbitMQ__Host")), h =>
-                {
-                    h.Username(Environment.GetEnvironmentVariable("RabbitMQ__User"));
-                    h.Password(Environment.GetEnvironmentVariable("RabbitMQ__Pass"));
-                });
+            var hostBuilder = new HostBuilder()
+                 .ConfigureServices((hostContext, services) =>
+                 {
+                     services.AddHostedService<Runner>();
+                 });
 
-                cfg.ReceiveEndpoint("event-listener", e =>
-                {
-                    e.Consumer<EventConsumer>();
-                });
-
-                cfg.ReceiveEndpoint("CheckOrderStatus", e =>
-                {
-                    e.Consumer<CheckOrderStatusConsumer>();
-                });
-            });
-
-            var source = new CancellationTokenSource();
-            await busControl.StartAsync(source.Token);
-            try
-            {
-                Console.WriteLine("Press enter to exit");
-
-                await Task.Run(() => Console.ReadLine());
-            }
-            finally
-            {
-                await busControl.StopAsync();
-            }
+            await hostBuilder.RunConsoleAsync();
         }
     }
 }
